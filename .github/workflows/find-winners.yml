@@ -1,1 +1,104 @@
-name:%20Find%20Winning%20Seeds%20(Chompstep)%0A%0Aon%3A%0A%20%20workflow_dispatch%3A%0A%20%20%20%20inputs%3A%0A%20%20%20%20%20%20startSeed%3A%0A%20%20%20%20%20%20%20%20description%3A%20'Start%20seed%20(uint32)'%0A%20%20%20%20%20%20%20%20required%3A%20false%0A%20%20%20%20%20%20%20%20default%3A%20'0'%0A%20%20%20%20%20%20maxSeeds%3A%0A%20%20%20%20%20%20%20%20description%3A%20'How%20many%20seeds%20to%20test'%0A%20%20%20%20%20%20%20%20required%3A%20false%0A%20%20%20%20%20%20%20%20default%3A%20'200000'%0A%20%20%20%20%20%20step%3A%0A%20%20%20%20%20%20%20%20description%3A%20'Seed%20step%20increment'%0A%20%20%20%20%20%20%20%20required%3A%20false%0A%20%20%20%20%20%20%20%20default%3A%20'1'%0A%20%20push%3A%0A%20%20%20%20branches%3A%20%5B%20main%20%5D%0A%0Ajobs%3A%0A%20%20find-seeds%3A%0A%20%20%20%20runs-on%3A%20ubuntu-latest%0A%20%20%20%20steps%3A%0A%20%20%20%20%20%20-%20name%3A%20Checkout%20repo%0A%20%20%20%20%20%20%20%20uses%3A%20actions/checkout@v4%0A%20%20%20%20%20%20%20%20with:%0A%20%20%20%20%20%20%20%20%20%20persist-credentials:%20true%0A%20%20%20%20%20%20%20%20%20%20fetch-depth:%200%0A%0A%20%20%20%20%20%20-%20name:%20Setup%20Node.js%0A%20%20%20%20%20%20%20%20uses:%20actions/setup-node@v4%0A%20%20%20%20%20%20%20%20with:%0A%20%20%20%20%20%20%20%20%20%20node-version:%20'20'%0A%20%20%20%20%20%20%20%20%20%20cache:%20'npm'%0A%0A%20%20%20%20%20%20-%20name:%20Install%20dependencies%0A%20%20%20%20%20%20%20%20run:%20npm%20ci%0A%0A%20%20%20%20%20%20-%20name:%20Run%20seed%20finder%0A%20%20%20%20%20%20%20%20env:%0A%20%20%20%20%20%20%20%20%20%20START_SEED:%20$%7B%7B%20github.event.inputs.startSeed%20%7C%7C%200%20%7D%7D%0A%20%20%20%20%20%20%20%20%20%20MAX_SEEDS:%20$%7B%7B%20github.event.inputs.maxSeeds%20%7C%7C%20200000%20%7D%7D%0A%20%20%20%20%20%20%20%20%20%20STEP:%20$%7B%7B%20github.event.inputs.step%20%7C%7C%201%20%7D%7D%0A%20%20%20%20%20%20%20%20run:%20%7C%0A%20%20%20%20%20%20%20%20%20%20echo%20%22Start%20seed:%20$START_SEED,%20maxSeeds:%20$MAX_SEEDS,%20step:%20$STEP%22%0A%20%20%20%20%20%20%20%20%20%20node%20src/index.js%20--startSeed=$%7BSTART_SEED%7D%20--maxSeeds=$%7BMAX_SEEDS%7D%20--step=$%7BSTEP%7D%0A%0A%20%20%20%20%20%20-%20name:%20Show%20results%20(head)%0A%20%20%20%20%20%20%20%20run:%20%7C%0A%20%20%20%20%20%20%20%20%20%20echo%20%22----%20winners%20head%20----%22%0A%20%20%20%20%20%20%20%20%20%20head%20-n%2050%20winning_seeds.txt%20%7C%7C%20true%0A%20%20%20%20%20%20%20%20%20%20echo%20%22----%20end%20----%22%0A%0A%20%20%20%20%20%20-%20name:%20Commit%20results%20back%20to%20repository%0A%20%20%20%20%20%20%20%20run:%20%7C%0A%20%20%20%20%20%20%20%20%20%20git%20config%20user.name%20%22github-actions%5Bbot%5D%22%0A%20%20%20%20%20%20%20%20%20%20git%20config%20user.email%20%2241898282+github-actions%5Bbot%5D@users.noreply.github.com%22%0A%20%20%20%20%20%20%20%20%20%20git%20add%20winning_seeds.txt%20%7C%7C%20true%0A%20%20%20%20%20%20%20%20%20%20if%20git%20diff%20--staged%20--quiet;%20then%0A%20%20%20%20%20%20%20%20%20%20%20%20echo%20%22No%20changes%20to%20commit%22%0A%20%20%20%20%20%20%20%20%20%20else%0A%20%20%20%20%20%20%20%20%20%20%20%20git%20commit%20-m%20%22Add/update%20winning_seeds.txt%20(automated%20run)%22%0A%20%20%20%20%20%20%20%20%20%20%20%20git%20push%20origin%20HEAD:$%7B%7B%20github.ref_name%20%7D%7D%0A%20%20%20%20%20%20%20%20%20%20fi%0A%20%20%20%20%20%20%20%20env:%0A%20%20%20%20%20%20%20%20%20%20GITHUB_TOKEN:%20$%7B%7B%20secrets.GITHUB_TOKEN%20%7D%7D%0A
+# .github/workflows/find-winners.yml
+name: Find Winning Seeds (Chompstep)
+
+on:
+  workflow_dispatch:
+    inputs:
+      startSeed:
+        description: 'Start seed (uint32)'
+        required: false
+        default: '0'
+      maxSeeds:
+        description: 'How many seeds to test'
+        required: false
+        default: '200000'
+      step:
+        description: 'Seed step increment'
+        required: false
+        default: '1'
+  push:
+    branches: [ main ]
+
+jobs:
+  find-seeds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run seed finder
+        env:
+          START_SEED: ${{ github.event.inputs.startSeed || '0' }}
+          MAX_SEEDS: ${{ github.event.inputs.maxSeeds || '200000' }}
+          STEP: ${{ github.event.inputs.step || '1' }}
+        run: |
+          echo "Start seed: ${START_SEED}, maxSeeds: ${MAX_SEEDS}, step: ${STEP}"
+          node src/index.js --startSeed=${START_SEED} --maxSeeds=${MAX_SEEDS} --step=${STEP}
+
+      - name: Show results (head)
+        run: |
+          echo "---- winners head ----"
+          if [ -f winning_seeds.txt ]; then
+            head -n 50 winning_seeds.txt || true
+          else
+            echo "winning_seeds.txt not found"
+          fi
+          echo "---- end ----"
+
+      - name: Send results via Discord webhook
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL || '' }}
+          MAX_SEEDS: ${{ github.event.inputs.maxSeeds || '200000' }}
+        run: |
+          # prepare local variables (values come from env)
+          DISCORD_WEBHOOK="${DISCORD_WEBHOOK}"
+          MAX_SEEDS="${MAX_SEEDS}"
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            echo "DISCORD_WEBHOOK_URL secret not set — skipping webhook send"
+            exit 0
+          fi
+
+          if [ ! -f winning_seeds.txt ]; then
+            echo "winning_seeds.txt not found — sending notice"
+            curl -s -X POST -H "Content-Type: application/json" \
+              -d "{\"content\":\"Chompstep run finished — no winning_seeds.txt found. Seeds attempted: ${MAX_SEEDS}.\"}" \
+              "$DISCORD_WEBHOOK" || true
+            exit 0
+          fi
+
+          # Send file as attachment with a short JSON payload describing the run
+          # Discord accepts multipart/form-data file uploads to webhooks.
+          curl -s -X POST \
+            -F "payload_json={\"content\":\"Chompstep seed finder finished. Seeds tested: ${MAX_SEEDS}. See attached winning_seeds.txt.\"}" \
+            -F "file=@winning_seeds.txt" \
+            "$DISCORD_WEBHOOK" || true
+
+      - name: Commit results back to repository
+        if: always()
+        env:
+          # GITHUB_TOKEN is provided automatically by GitHub Actions runner
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # force-add the file even if it's in .gitignore
+          git add -f winning_seeds.txt || true
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Add/update winning_seeds.txt (automated run)"
+            # push to main (edit if you want a different branch)
+            git push origin HEAD:main
+          fi
