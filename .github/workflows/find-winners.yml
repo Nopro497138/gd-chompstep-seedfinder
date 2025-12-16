@@ -1,14 +1,16 @@
-# .github/workflows/find-winners.yml
-name: Find Winning Seeds (Chompstep)
+name: Find Winning Seeds (by Level ID)
 
-# Erforderliche Token-Berechtigungen für Commit/PR-Erstellung
 permissions:
-  contents: write            # erlaubt push / commit
-  pull-requests: write       # erlaubt PR-Erstellung
+  contents: write
+  pull-requests: write
 
 on:
   workflow_dispatch:
     inputs:
+      levelId:
+        description: 'Optional: Geometry Dash level ID to fetch and derive model from'
+        required: false
+        default: ''
       startSeed:
         description: 'Start seed (uint32)'
         required: false
@@ -28,11 +30,11 @@ jobs:
   find-seeds:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo (no credentials)
+      - name: Checkout (no credentials)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false   # wir setzen die Remote-URL später explizit
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -47,18 +49,19 @@ jobs:
           START_SEED: ${{ github.event.inputs.startSeed || '0' }}
           MAX_SEEDS: ${{ github.event.inputs.maxSeeds || '200000' }}
           STEP: ${{ github.event.inputs.step || '1' }}
+          LEVEL_ID: ${{ github.event.inputs.levelId || '' }}
         run: |
-          echo "Start seed: ${START_SEED}, maxSeeds: ${MAX_SEEDS}, step: ${STEP}"
-          node src/index.js --startSeed=${START_SEED} --maxSeeds=${MAX_SEEDS} --step=${STEP}
+          echo "Start: startSeed=${START_SEED}, maxSeeds=${MAX_SEEDS}, step=${STEP}, levelId='${LEVEL_ID}'"
+          if [ -n "${LEVEL_ID}" ]; then
+            node src/index.js --levelId=${LEVEL_ID} --startSeed=${START_SEED} --maxSeeds=${MAX_SEEDS} --step=${STEP}
+          else
+            node src/index.js --startSeed=${START_SEED} --maxSeeds=${MAX_SEEDS} --step=${STEP}
+          fi
 
       - name: Show results (head)
         run: |
           echo "---- winners head ----"
-          if [ -f winning_seeds.txt ]; then
-            head -n 50 winning_seeds.txt || true
-          else
-            echo "winning_seeds.txt not found"
-          fi
+          if [ -f winning_seeds.txt ]; then head -n 50 winning_seeds.txt || true; else echo "winning_seeds.txt not found"; fi
           echo "---- end ----"
 
       - name: Send results via Discord webhook
@@ -66,6 +69,7 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL || '' }}
           MAX_SEEDS: ${{ github.event.inputs.maxSeeds || '200000' }}
+          LEVEL_ID: ${{ github.event.inputs.levelId || '' }}
         run: |
           if [ -z "$DISCORD_WEBHOOK" ]; then
             echo "DISCORD_WEBHOOK_URL secret not set — skipping webhook send"
@@ -73,15 +77,14 @@ jobs:
           fi
 
           if [ ! -f winning_seeds.txt ]; then
-            echo "winning_seeds.txt not found — sending notice"
             curl -s -X POST -H "Content-Type: application/json" \
-              -d "{\"content\":\"Chompstep run finished — no winning_seeds.txt found. Seeds attempted: ${MAX_SEEDS}.\"}" \
+              -d "{\"content\":\"Chompstep run finished — no winning_seeds.txt found. Seeds attempted: ${MAX_SEEDS}. LevelId: ${LEVEL_ID}\"}" \
               "$DISCORD_WEBHOOK" || true
             exit 0
           fi
 
           curl -s -X POST \
-            -F "payload_json={\"content\":\"Chompstep seed finder finished. Seeds tested: ${MAX_SEEDS}. See attached winning_seeds.txt.\"}" \
+            -F "payload_json={\"content\":\"Seed finder finished. Seeds tested: ${MAX_SEEDS}. LevelId: ${LEVEL_ID}. See attached winning_seeds.txt.\"}" \
             -F "file=@winning_seeds.txt" \
             "$DISCORD_WEBHOOK" || true
 
@@ -94,46 +97,30 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
-          # configure git identity
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          # force-add the results file (even if .gitignore contains it)
           git add -f winning_seeds.txt || true
-
           if git diff --staged --quiet; then
             echo "No changes to commit"
             exit 0
           fi
-
           git commit -m "Add/update winning_seeds.txt (automated run)"
-
-          # Set authenticated remote using the workflow token
           AUTH_REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git"
           git remote set-url origin "$AUTH_REMOTE"
-
-          echo "Attempting to push directly to main..."
+          echo "Attempting to push to main..."
           if git push origin HEAD:main; then
-            echo "Successfully pushed to main."
+            echo "Pushed to main."
             exit 0
           fi
-
-          echo "Direct push to main failed — creating branch and opening a PR..."
-
-          # create a branch, push it, then open a PR via GitHub API
+          echo "Push failed — creating branch and PR..."
           BRANCH="gh-actions/winning-seeds-$(date +%s)"
           git checkout -b "$BRANCH"
           git push -u origin "$BRANCH"
-
           PR_TITLE="Automated update: winning_seeds.txt (workflow ${WORKFLOW_NAME})"
-          PR_BODY="This PR was created automatically by workflow run ${RUN_ID} and contains an updated winning_seeds.txt generated by the Chompstep seed finder. If you want the workflow to push directly to main, adjust branch protection or allow write permissions for the Actions runner."
-
-          echo "Creating PR via GitHub API..."
+          PR_BODY="This PR was created automatically by workflow run ${RUN_ID} and contains an updated winning_seeds.txt generated by the seed finder."
           curl -s -X POST \
             -H "Authorization: token ${GITHUB_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${REPO}/pulls" \
             -d "{\"title\":\"${PR_TITLE}\",\"head\":\"${BRANCH}\",\"base\":\"main\",\"body\":\"${PR_BODY}\"}" \
-            | jq -r '.html_url // "PR creation response received"'
-
-          echo "PR created (or attempted)."
+            || true
