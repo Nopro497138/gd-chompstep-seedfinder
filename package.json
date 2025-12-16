@@ -1,17 +1,13 @@
 {
   "name": "gd-chompstep-seedfinder",
-  "version": "1.1.0",
-  "description": "Seed finder for Geometry Dash levels. Can fetch levelstrings by ID and run a heuristic simulation (special-case: Chompstep).",
+  "version": "1.2.0",
+  "description": "Robust seed finder for Geometry Dash levels. Fetches levelstrings by ID, decodes and runs heuristic simulations. Safe defaults, timeouts, retries and optional worker-thread parallelism.",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "lint": "echo \"no linter configured\""
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Nopro497138/gd-chompstep-seedfinder"
-  },
-  "author": "Noahjo",
+  "author": "You",
   "license": "MIT",
   "engines": {
     "node": ">=18"
