@@ -1,13 +1,12 @@
 // src/simulator.js
-// Simple Chompstep model: 35 sequential independent 50/50 "monster" checks.
-// RNG: 32-bit LCG (Numerical Recipes style). For each monster we draw nextFloat() and
-// consider 'death' if draw < 0.5 (this matches the 50% phrasing used by the community).
+// RNG + generic simulator utilities.
+// Exports simulateGeneric(seed, numChecks, p)
 
+/* 32-bit LCG used as example RNG (Numerical Recipes style) */
 function makeLCGRNG(seed) {
   let state = seed >>> 0;
   return {
     nextInt() {
-      // 32-bit LCG example
       state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
       return state;
     },
@@ -21,23 +20,22 @@ function makeLCGRNG(seed) {
 }
 
 /**
- * simulateChompstep(seed)
- * Returns true if the seed survives all 35 independent 50% checks.
- * - seed: 32-bit unsigned integer
+ * simulateGeneric(seed, numChecks, p)
+ * - Runs numChecks independent draws with probability p to 'survive' each check.
+ * - Returns true if the run survives all checks.
+ * - seed: 32-bit unsigned int
  */
-function simulateChompstep(seed) {
-  const NUM_MONSTERS = 35; // community model: 35 clubstep monsters each 50% chance to kill
-  const rng = makeLCGRNG(seed);
-
-  for (let i = 0; i < NUM_MONSTERS; i++) {
+function simulateGeneric(seed, numChecks = 10, p = 0.5) {
+  const rng = makeLCGRNG(seed >>> 0);
+  for (let i = 0; i < numChecks; i++) {
     const draw = rng.nextFloat();
-    // Model choice: if draw < 0.5 => death (50%); otherwise survive
-    // Note: you can invert semantics if community describes it differently.
-    if (draw < 0.5) return false; // died at monster i
+    // We consider survival if draw >= p (so death chance is p). This matches earlier convention.
+    // If you want the opposite semantics, invert the comparison.
+    if (draw < p) return false; // died
   }
-  return true; // survived all monsters
+  return true; // survived all
 }
 
 module.exports = {
-  simulateChompstep
+  simulateGeneric
 };
