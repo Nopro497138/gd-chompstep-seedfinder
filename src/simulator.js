@@ -1,8 +1,6 @@
 // src/simulator.js
-// RNG + generic simulator utilities.
-// Exports simulateGeneric(seed, numChecks, p)
+// RNG + generic simulator utilities. Keep small and robust.
 
-/* 32-bit LCG used as example RNG (Numerical Recipes style) */
 function makeLCGRNG(seed) {
   let state = seed >>> 0;
   return {
@@ -23,17 +21,17 @@ function makeLCGRNG(seed) {
  * simulateGeneric(seed, numChecks, p)
  * - Runs numChecks independent draws with probability p to 'survive' each check.
  * - Returns true if the run survives all checks.
- * - seed: 32-bit unsigned int
  */
 function simulateGeneric(seed, numChecks = 10, p = 0.5) {
+  // argument sanity
+  numChecks = Math.max(0, Math.min(10000, Math.floor(Number(numChecks) || 0)));
+  p = Math.max(0, Math.min(1, Number(p) || 0.5));
   const rng = makeLCGRNG(seed >>> 0);
   for (let i = 0; i < numChecks; i++) {
     const draw = rng.nextFloat();
-    // We consider survival if draw >= p (so death chance is p). This matches earlier convention.
-    // If you want the opposite semantics, invert the comparison.
-    if (draw < p) return false; // died
+    if (draw < p) return false;
   }
-  return true; // survived all
+  return true;
 }
 
 module.exports = {
