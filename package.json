@@ -1,18 +1,17 @@
 {
   "name": "gd-chompstep-seedfinder",
-  "version": "1.0.0",
-  "description": "Seed finder for Geometry Dash level 'Chompstep' (ID:122149930). Models 35 independent 50/50 monster checks.",
+  "version": "1.1.0",
+  "description": "Seed finder for Geometry Dash levels. Can fetch levelstrings by ID and run a heuristic simulation (special-case: Chompstep).",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "start:fast": "node src/index.js --maxSeeds=100000 --step=1",
     "lint": "echo \"no linter configured\""
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/Nopro497138/gd-chompstep-seedfinder"
   },
-  "author": "You",
+  "author": "Noahjo",
   "license": "MIT",
   "engines": {
     "node": ">=18"
